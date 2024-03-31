@@ -18,6 +18,7 @@ def retrieve_portfolio_data(stocks:list=[]):
 
 def maximize_sharpe_ratio(returns_df, asset_prices, budget):
     # Calculate mean returns and covariance matrix
+    asset_prices = asset_prices['Price'].to_list()
     mean_returns = returns_df.mean()
     cov_matrix = returns_df.cov()
 
@@ -27,7 +28,7 @@ def maximize_sharpe_ratio(returns_df, asset_prices, budget):
     def negative_sharpe_ratio(weights):
         portfolio_return = np.dot(mean_returns, weights)
         portfolio_risk = np.sqrt(np.dot(weights, np.dot(cov_matrix, weights)))
-        sharpe_ratio = portfolio_return - portfolio_risk
+        sharpe_ratio = portfolio_return / portfolio_risk
         return -sharpe_ratio
 
     # Constraint: Sum of values of lots <= budget
@@ -36,7 +37,7 @@ def maximize_sharpe_ratio(returns_df, asset_prices, budget):
 
     bounds = tuple((0, budget / price) for price in asset_prices)
 
-    initial_weights = np.ones(num_assets) / num_assets
+    initial_weights = np.random.rand(num_assets) / num_assets
 
     # Perform optimization to maximize Sharpe ratio
     result = minimize(negative_sharpe_ratio, initial_weights, method='SLSQP', bounds=bounds, constraints=[weight_sum_constraint, budget_constraint])
@@ -56,6 +57,8 @@ def calculate_annualized_return(daily_return, historical_period, trading_days_in
 
 def preparation(data:pd.DataFrame=None):
     stock_data_raw = data.pivot_table(index="Date", columns="Code", values="Close")
+    eligible_stocks = stock_data_raw.tail(7).dropna(axis=1).columns
+    stock_data_raw = stock_data_raw[eligible_stocks]
     stock_data = stock_data_raw.copy()
     for col in stock_data_raw.columns:
         stock_data[col] = stock_data[col].pct_change()
@@ -64,7 +67,8 @@ def preparation(data:pd.DataFrame=None):
 def get_stock_price(stock_data):
     price = stock_data.tail(7).max().T.reset_index()
     price.columns = ['Code', 'Price']
-    return np.dot(price['Price'].to_list(), 100)
+    price['Price'] = price['Price']*100
+    return price
 
 def get_stock_return(stock_data):
     return stock_data.mean()
@@ -76,7 +80,8 @@ def get_stock_risk(stock_data):
 
 def generate_result(stock_data, optimized_weights, lots, prices, return_data, risk_data):
     result = pd.DataFrame([stock_data.columns, optimized_weights, lots], index=['Code', 'Weight', 'Lots']).T
-    result['Price'] = [int(price/100) for price in prices]
+    result = result.merge(prices, on='Code', how='left')
+    result['Price'] = result['Price']/100
     result['Mean_return'] = return_data.to_list()
     result['Mean_risk'] = risk_data
     result = result.sort_values(['Lots', 'Weight'], ascending=False)

@@ -32,6 +32,7 @@ with opt:
         stock_data, stock_data_raw = preparation(portfolio_data)
 
         asset_prices = get_stock_price(stock_data_raw)
+
         return_data = get_stock_return(stock_data)
         risk_data = get_stock_risk(stock_data)
         
@@ -42,6 +43,7 @@ with opt:
         portfolio_return = calculate_portfolio_return(optimized_weights, return_data.mean())
         portfolio_risk = calculate_portfolio_risk(optimized_weights, cov_matrix)
         portoflio_annual_return = calculate_annualized_return(portfolio_return, historical_period)
+
 
         res = generate_result(stock_data, optimized_weights, lots, asset_prices, return_data, risk_data)
 
